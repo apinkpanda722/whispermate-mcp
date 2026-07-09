@@ -1,0 +1,253 @@
+{
+	"meta": {
+		"generatedAt": "2026-07-09T09:50:06.284Z",
+		"tasksAnalyzed": 30,
+		"totalTasks": 30,
+		"analysisCount": 30,
+		"thresholdScore": 5,
+		"projectName": "Task Master",
+		"usedResearch": true
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "Supabase 프로젝트 초기 설정 및 환경변수 구성",
+			"complexityScore": 3,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down the Supabase setup into: (1) Create/configure Supabase project via MCP, (2) Install @supabase/supabase-js dependency, (3) Configure environment variables in .env and .env.example, (4) Add TypeScript types to vite-env.d.ts, (5) Create src/lib/supabase.ts client initialization. Each subtask should be independently testable.",
+			"reasoning": "Standard integration task with well-documented steps. Uses existing MCP tools. Low technical risk but requires careful environment variable handling and TypeScript type setup. The codebase already has similar patterns (Sentry integration in src/lib/sentry.ts) to follow."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "Supabase 데이터베이스 스키마 생성 (transcriptions 테이블)",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Split into: (1) Design migration SQL for transcriptions table with all columns, (2) Create indexes for query optimization, (3) Enable RLS on table, (4) Create 4 RLS policies (SELECT/INSERT/UPDATE/DELETE), (5) Create updated_at trigger function, (6) Generate TypeScript types via Supabase MCP and save to src/types/supabase.ts. Test each policy independently.",
+			"reasoning": "Moderate complexity due to RLS policies and trigger functions. Requires understanding of Postgres security model and proper testing of each policy. The migration is comprehensive with multiple moving parts (table, indexes, RLS, trigger). TypeScript type generation adds integration layer."
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "브라우저 마이크 녹음 기능 구현 (MediaRecorder API)",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break into: (1) Create useAudioRecorder hook structure with state management, (2) Implement startRecording with getUserMedia and permission handling, (3) Configure MediaRecorder with optimal audio settings, (4) Handle ondataavailable event and chunk collection, (5) Implement stopRecording with proper stream cleanup, (6) Add error handling for permission denial and device unavailable, (7) Integrate Sentry error logging for edge cases. Test across browsers.",
+			"reasoning": "Browser API integration with significant edge cases: permission handling, browser compatibility (Chrome/Firefox/Safari differ), proper stream cleanup to avoid memory leaks, and audio format selection. The MediaRecorder API has nuances around chunk collection and stopping. Testing requires actual microphone access."
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "Supabase Edge Function 생성 (Whisper STT 프록시)",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Divide into: (1) Create Supabase Edge Function project structure in supabase/functions/transcribe, (2) Implement CORS preflight handling, (3) Add Supabase auth verification using JWT, (4) Extract and validate audio file from FormData, (5) Configure OpenAI Whisper API request with proper parameters, (6) Handle Whisper API errors and rate limits, (7) Set up environment secrets (OPENAI_API_KEY) in Supabase project, (8) Deploy function and test with authenticated requests. Consider timeout handling for long audio files.",
+			"reasoning": "Complex serverless function with multiple integration points: Supabase Auth verification, OpenAI API integration, FormData handling in Deno runtime, CORS configuration, error handling, and secrets management. Deno environment differs from Node.js. Testing requires coordinated setup of multiple services."
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "STT 변환 서비스 레이어 구현",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Split into: (1) Create src/services/transcription.ts with TypeScript interfaces, (2) Implement transcribeAudio function with Supabase session retrieval, (3) Build FormData with audio blob and metadata, (4) Call Edge Function via supabase.functions.invoke, (5) Parse and return transcription result, (6) Add comprehensive error handling with Sentry integration for network, auth, and API errors. Include retry logic consideration.",
+			"reasoning": "Service layer bridging client and Edge Function. Complexity from auth token management, FormData construction, error categorization (network vs API vs auth), and Sentry context enrichment. Needs to handle various failure modes gracefully."
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "녹음 UI 컴포넌트 구현 (RecordingControls)",
+			"complexityScore": 4,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down into: (1) Create RecordingControls component with TypeScript interface, (2) Implement recording button with Mic icon and proper sizing, (3) Add stop button with Square icon in destructive variant, (4) Create animated recording indicator with pulse effect, (5) Add processing state indicator with appropriate messaging. Ensure proper disabled states and accessibility attributes.",
+			"reasoning": "UI component using existing shadcn Button and Lucide icons. Moderate complexity from state-driven rendering, animation implementation, and ensuring proper visual feedback. The codebase already has shadcn/ui configured, reducing setup complexity."
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "변환 결과 표시 컴포넌트 구현 (TranscriptionResult)",
+			"complexityScore": 3,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Split into: (1) Create TranscriptionResult component with props interface, (2) Implement card layout with text display area, (3) Add copy button with icon toggle (Copy → Check) and state management, (4) Handle clipboard write with async/await and 2-second timeout for icon reset. Ensure proper null/empty text handling.",
+			"reasoning": "Straightforward UI component with local state management for copy feedback. Low complexity due to existing shadcn Card and Button components. Main logic is clipboard API and temporary state toggle."
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "클립보드 자동 복사 기능 구현 (Clipboard API)",
+			"complexityScore": 4,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break into: (1) Create useClipboard hook with copyToClipboard function, (2) Implement navigator.clipboard.writeText with try-catch, (3) Add Sentry error logging with clipboard context, (4) Integrate hook into App.tsx to auto-copy on transcription complete. Test permission handling and cross-browser compatibility.",
+			"reasoning": "Browser API integration with error handling. Complexity from permission model (some browsers require user gesture), Sentry integration, and ensuring reliable cross-browser behavior. The pattern follows existing Sentry integration style."
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "토스트 알림 시스템 구현 (shadcn Sonner)",
+			"complexityScore": 2,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Split into: (1) Install sonner via shadcn CLI, (2) Add Toaster component to src/main.tsx with positioning, (3) Integrate toast.success and toast.error calls at appropriate points in App.tsx (clipboard success, STT failure, network errors). Verify toast rendering and auto-dismiss behavior.",
+			"reasoning": "Simple library integration following standard shadcn pattern. Low complexity as it's a drop-in component. The codebase already uses shadcn/ui, making this straightforward. Main work is placing toast calls at correct event points."
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "Supabase Auth 익명 인증 설정",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break into: (1) Enable anonymous sign-ins in Supabase project settings, (2) Create useAuth hook with user and loading state, (3) Implement getSession on mount, (4) Add signInAnonymously fallback for no session, (5) Set up onAuthStateChange listener with cleanup, (6) Integrate useAuth in App.tsx with loading UI. Test session persistence across page refreshes.",
+			"reasoning": "Auth flow implementation with async state management. Complexity from lifecycle handling (mount, session check, listener setup/cleanup), race conditions between session check and anonymous sign-in, and proper loading state management. Critical for all subsequent authenticated operations."
+		},
+		{
+			"taskId": 11,
+			"taskTitle": "변환 결과 Supabase DB 저장 기능 구현",
+			"complexityScore": 4,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Split into: (1) Add saveTranscription function to src/services/transcription.ts, (2) Get authenticated user and construct TranscriptionInsert object, (3) Execute supabase.from('transcriptions').insert with .select().single(), (4) Add error handling with Sentry logging, (5) Integrate saveTranscription call in App.tsx after successful transcription. Test RLS policy enforcement and error scenarios.",
+			"reasoning": "Database integration with type safety and error handling. Moderate complexity from proper TypeScript typing using generated Supabase types, auth context management, and ensuring RLS policies work correctly. Depends on Tasks 2, 5, and 10 being complete."
+		},
+		{
+			"taskId": 12,
+			"taskTitle": "메인 앱 통합 (Phase 1 MVP 완성)",
+			"complexityScore": 8,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Break into: (1) Refactor App.tsx to remove scaffold code, (2) Integrate useAuth with loading state, (3) Add useAudioRecorder hook, (4) Add useClipboard hook, (5) Set up transcription state management, (6) Create useEffect to trigger transcription on audioBlob change, (7) Implement handleTranscription orchestrating STT→clipboard→DB flow, (8) Add comprehensive error handling and toast notifications, (9) Compose RecordingControls and TranscriptionResult in layout, (10) Test complete end-to-end flow with error injection. This is a critical integration point requiring careful orchestration.",
+			"reasoning": "High complexity integration task bringing together 6 major subsystems (auth, recording, STT, clipboard, DB, toast). Requires careful state management, effect dependencies, error handling across async operations, and proper loading states. This is the critical path completing Phase 1 MVP. Testing requires full stack."
+		},
+		{
+			"taskId": 13,
+			"taskTitle": "히스토리 목록 조회 UI 구현",
+			"complexityScore": 6,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break into: (1) Install date-fns library, (2) Create TranscriptionHistory component with state, (3) Implement fetchHistory with Supabase query (.order, .limit), (4) Add useEffect to fetch on mount, (5) Create loading state UI, (6) Implement empty state message, (7) Build Card-based list item rendering with date formatting, (8) Add handleCopy and handleDelete functions with optimistic updates and error handling. Test pagination considerations.",
+			"reasoning": "Full-featured list component with CRUD operations. Complexity from Supabase query construction, date formatting with i18n, optimistic UI updates on delete, empty/loading states, and proper error handling. Needs integration with toast system and clipboard API."
+		},
+		{
+			"taskId": 14,
+			"taskTitle": "히스토리 검색 기능 구현",
+			"complexityScore": 4,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Split into: (1) Add searchQuery state and Input component to TranscriptionHistory, (2) Modify fetchHistory to accept search parameter, (3) Implement Supabase .or() query with .ilike for raw_text and edited_text, (4) Add debounced useEffect (300ms) to trigger search on query change, (5) Test case-insensitive search and special character handling. Consider search performance on large datasets.",
+			"reasoning": "Search feature with debouncing and database query optimization. Moderate complexity from implementing proper debounce pattern, constructing OR queries in Supabase, handling empty search state, and ensuring good UX during typing. Performance considerations for large history."
+		},
+		{
+			"taskId": 15,
+			"taskTitle": "히스토리 항목 인라인 편집 기능 구현",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break into: (1) Add editingId and editText state to TranscriptionHistory, (2) Implement startEdit function to enter edit mode, (3) Create saveEdit with Supabase .update and optimistic UI update, (4) Add cancelEdit to revert changes, (5) Implement conditional rendering switching between view/edit modes with Textarea, (6) Add keyboard shortcuts (Enter to save, Esc to cancel) for better UX. Test concurrent edits and race conditions.",
+			"reasoning": "Inline editing with state management and DB updates. Complexity from managing edit mode state per item, optimistic updates with rollback on error, proper UX with save/cancel actions, and ensuring edited_text field updates correctly. Keyboard shortcuts add polish but increase complexity."
+		},
+		{
+			"taskId": 16,
+			"taskTitle": "히스토리 항목 재복사 및 삭제 기능 완성",
+			"complexityScore": 3,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Split into: (1) Install shadcn AlertDialog component, (2) Wrap delete button with AlertDialog confirmation, (3) Add Tooltip component to copy button, (4) Implement fade-out animation on delete. Verify that Task 13's handleCopy and handleDelete work correctly with new UI enhancements.",
+			"reasoning": "UI polish task building on existing functionality. Low-moderate complexity as core logic exists, mainly adding confirmation dialog and visual enhancements. Uses standard shadcn components with straightforward integration."
+		},
+		{
+			"taskId": 17,
+			"taskTitle": "Playwright E2E 테스트 스크립트 작성",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break into: (1) Install Playwright and browsers, (2) Create playwright.config.ts with proper settings, (3) Write test for recording flow with permission grants, (4) Implement wait strategies for async STT conversion (up to 30s timeout), (5) Add clipboard verification test, (6) Create history navigation and search test, (7) Write re-copy test from history, (8) Configure test scripts in package.json and add to CI documentation. Mock audio input for consistent testing.",
+			"reasoning": "E2E testing infrastructure from scratch. High complexity from Playwright setup, handling permissions (microphone, clipboard), async waits for STT API (variable timing), mocking audio input for consistent tests, and browser compatibility testing. Requires understanding of Playwright's auto-waiting and retry logic."
+		},
+		{
+			"taskId": 18,
+			"taskTitle": "Electron 프로젝트 초기 셋업",
+			"complexityScore": 8,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Break into: (1) Install Electron and build tools (electron-builder, concurrently, wait-on), (2) Create electron/main.ts with BrowserWindow setup, (3) Configure dev vs prod URL loading logic, (4) Create electron/preload.ts with contextBridge, (5) Add electron:dev and electron:build scripts to package.json, (6) Create electron-builder.json with platform configs, (7) Configure TypeScript for Electron files, (8) Set up proper file paths and __dirname handling in ESM, (9) Test dev mode with hot reload, (10) Test production build and ensure dist files are included correctly. This is a major architectural shift.",
+			"reasoning": "Major architectural change wrapping web app in Electron. High complexity from: two-process architecture (main/renderer), IPC setup, dev/prod environment handling, build configuration, ESM module resolution in Electron, proper path handling, and ensuring Vite build output works in Electron. Critical dependency for all desktop features."
+		},
+		{
+			"taskId": 19,
+			"taskTitle": "Electron 네이티브 클립보드 IPC 구현",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Split into: (1) Add clipboard:write IPC handler in electron/main.ts, (2) Expose clipboard API in electron/preload.ts via contextBridge, (3) Create src/types/electron.d.ts for Window interface extension, (4) Modify useClipboard hook to detect Electron environment, (5) Implement fallback to Web Clipboard API for browser, (6) Add error handling and success/failure return values, (7) Test in both Electron and browser environments. Ensure proper type safety.",
+			"reasoning": "IPC bridge between renderer and main process. Moderate-high complexity from: IPC patterns (handle/invoke), TypeScript typing for contextBridge, environment detection logic, maintaining backward compatibility with browser, and ensuring both code paths are tested. Requires understanding of Electron security model."
+		},
+		{
+			"taskId": 20,
+			"taskTitle": "Electron 전역 단축키 등록",
+			"complexityScore": 5,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break into: (1) Import and configure globalShortcut in electron/main.ts, (2) Register CommandOrControl+Shift+R shortcut on app ready, (3) Implement IPC send to renderer on shortcut trigger, (4) Add onToggleRecording listener in preload.ts, (5) Create cleanup in will-quit to unregister shortcuts, (6) Integrate event listener in App.tsx to toggle recording state. Test conflict with other apps and macOS accessibility permissions.",
+			"reasoning": "System-level integration with potential permission and conflict issues. Moderate complexity from global shortcut registration, IPC event emission (one-way vs two-way), proper cleanup to avoid memory leaks, macOS accessibility permissions requirements, and handling shortcut conflicts with other applications."
+		},
+		{
+			"taskId": 21,
+			"taskTitle": "Electron 시스템 트레이 아이콘 및 메뉴 구현",
+			"complexityScore": 6,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break into: (1) Prepare tray icon assets (PNG at multiple resolutions for retina), (2) Create Tray instance in main.ts with icon loading, (3) Build context menu with Menu.buildFromTemplate, (4) Implement menu actions (start recording, show history, quit), (5) Add tray click handler to show window, (6) Modify window-all-closed to prevent quit (stay in tray), (7) Handle platform differences (macOS vs Windows tray behavior), (8) Test tray icon appearance and menu functionality on both platforms.",
+			"reasoning": "Native OS integration with platform differences. Moderate-high complexity from: asset preparation and retina support, Tray API configuration, Menu API usage, window lifecycle management (minimize vs quit), platform-specific behavior (macOS keeps apps running, Windows may not), and ensuring consistent UX across OSes."
+		},
+		{
+			"taskId": 22,
+			"taskTitle": "Electron 메인 프로세스 Sentry 연동",
+			"complexityScore": 5,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Split into: (1) Install @sentry/electron package, (2) Initialize Sentry in electron/main.ts with main process integration, (3) Update src/lib/sentry.ts to use @sentry/electron/renderer, (4) Configure sourcemaps for both main and renderer processes, (5) Test error capture in both processes and verify in Sentry dashboard. Ensure DSN is shared correctly across processes.",
+			"reasoning": "Dual-process monitoring setup. Moderate complexity from: using Sentry Electron SDK (different from React SDK), configuring both main and renderer integrations, ensuring sourcemaps work in production builds, environment variable handling across processes, and testing error capture in both contexts."
+		},
+		{
+			"taskId": 23,
+			"taskTitle": "electron-builder 빌드 및 배포 설정",
+			"complexityScore": 9,
+			"recommendedSubtasks": 12,
+			"expansionPrompt": "Break into: (1) Configure electron-builder.json with app metadata, (2) Set up macOS target (dmg, zip) with icon and category, (3) Create entitlements.mac.plist for audio-input permission, (4) Set up Windows target (nsis, portable) with icon, (5) Configure NSIS installer options, (6) Prepare icon assets (icon.icns for macOS, icon.ico for Windows), (7) Set up code signing placeholders (certificate handling documented), (8) Create GitHub Actions workflow for CI/CD builds, (9) Configure matrix strategy for multi-platform builds, (10) Add artifact upload step, (11) Test local builds on both platforms, (12) Document release process and troubleshoot common build issues.",
+			"reasoning": "Complex build and deployment infrastructure. High complexity from: electron-builder configuration nuances, platform-specific requirements (entitlements, icons, installers), code signing setup (even as placeholder), CI/CD pipeline with matrix builds, handling secrets, build artifacts, testing installers on multiple OSes, and debugging platform-specific build failures. This completes the Electron phase."
+		},
+		{
+			"taskId": 24,
+			"taskTitle": "STT 실패 재시도 UX 구현",
+			"complexityScore": 4,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Split into: (1) Create transcribeAudioWithRetry wrapper in transcription service, (2) Implement exponential backoff retry logic (3 attempts: 2s, 4s, 8s), (3) Add error state management in App.tsx, (4) Create error UI with retry button, (5) Preserve audioBlob for retry attempts and add retry count display. Test with network failures and API errors.",
+			"reasoning": "Retry logic with exponential backoff. Moderate complexity from implementing proper retry pattern with backoff, distinguishing retryable vs non-retryable errors, preserving audio blob for retries, state management for error display, and ensuring UX remains clear during multiple retry attempts."
+		},
+		{
+			"taskId": 25,
+			"taskTitle": "다국어 지원 개선 (언어 선택 UI)",
+			"complexityScore": 3,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break into: (1) Install shadcn Select component, (2) Create LanguageSelector component with SUPPORTED_LANGUAGES array, (3) Add selectedLanguage state in App.tsx, (4) Pass language parameter to transcribeAudio calls. Consider adding auto-detect option using Whisper's language detection (language: null).",
+			"reasoning": "Simple dropdown UI with state management. Low complexity as it's a standard Select component with predefined options. Main work is wiring up state and passing to API. The Whisper API handles language processing, so no complex logic needed client-side."
+		},
+		{
+			"taskId": 26,
+			"taskTitle": "Whisper 정확도 향상 파라미터 튜닝",
+			"complexityScore": 4,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Split into: (1) Add prompt parameter to Edge Function FormData handling, (2) Implement temperature parameter setting (default 0 for deterministic), (3) Add response_format: 'verbose_json' for timestamp data, (4) Update transcription service to send optional prompt parameter, (5) Parse verbose_json response and extract additional metadata. Consider A/B testing framework for measuring accuracy improvements.",
+			"reasoning": "API parameter optimization with parsing changes. Moderate complexity from understanding Whisper API parameters (prompt, temperature, response_format), modifying Edge Function to handle new parameters, updating TypeScript types for verbose response, and potentially storing additional metadata (timestamps) for future features."
+		},
+		{
+			"taskId": 27,
+			"taskTitle": "사용자별 설정 저장 (settings 테이블)",
+			"complexityScore": 5,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break into: (1) Create settings table migration with RLS policies, (2) Generate TypeScript types for settings table, (3) Create src/services/settings.ts with getSettings and updateSettings, (4) Build SettingsPanel component with form UI, (5) Implement upsert logic for settings, (6) Integrate settings into App.tsx and Electron main process, (7) Test settings persistence and RLS enforcement. Plan for dynamic shortcut registration in Electron.",
+			"reasoning": "Full CRUD feature with DB and UI. Moderate complexity from: database schema with RLS, service layer with upsert pattern, UI form with validation, integrating settings into existing features (especially dynamic shortcut registration in Electron), and ensuring settings sync correctly across app restarts."
+		},
+		{
+			"taskId": 28,
+			"taskTitle": "성능 최적화: 긴 오디오 청크 업로드",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break into: (1) Modify MediaRecorder to use timeslice for automatic chunking (5-minute intervals), (2) Implement chunk queue management in useAudioRecorder, (3) Create handleChunkTranscription for sequential chunk processing, (4) Add progress indicator UI showing chunk N/M, (5) Implement result accumulation and text concatenation strategy, (6) Add chunk-level error handling and retry, (7) Consider cost optimization (fewer API calls vs more), (8) Test with >10-minute recordings and monitor memory usage.",
+			"reasoning": "Advanced MediaRecorder usage with chunking strategy. High complexity from: timeslice-based chunking, managing async chunk processing queue, memory management for long recordings, UI feedback for progress, text concatenation strategy (spacing, punctuation), error handling per chunk, and cost vs quality tradeoffs. Requires careful testing with long recordings."
+		},
+		{
+			"taskId": 29,
+			"taskTitle": "Sentry 알림 규칙 세분화",
+			"complexityScore": 2,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Split into: (1) Navigate to Sentry project alert settings and review existing rules, (2) Create new alert rules for high-priority issues with Slack integration, (3) Document alert rule configuration in project documentation. Note: This is a manual web console task, not code changes.",
+			"reasoning": "Manual configuration task in Sentry web console. Low complexity as it's UI-driven configuration, not coding. Main work is understanding alert rule conditions and configuring notification channels. Sentry MCP can read rules but not create them, so this is entirely manual."
+		},
+		{
+			"taskId": 30,
+			"taskTitle": "프로덕션 배포 및 최종 검증",
+			"complexityScore": 8,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Break into: (1) Verify all production environment variables are set, (2) Run production build (npm run build && electron:build), (3) Test macOS DMG installation and all features, (4) Test Windows NSIS installation and all features, (5) Run Playwright E2E test suite, (6) Monitor Sentry for any production errors, (7) Conduct beta testing with real users and collect feedback, (8) Create GitHub Release with download links, (9) Update README with installation instructions and FAQ, (10) Document known issues and future roadmap. This is final integration and validation.",
+			"reasoning": "Comprehensive release validation task. High complexity from: coordinating multiple builds, testing full feature set on multiple platforms, E2E test execution, production monitoring setup, beta testing coordination, release documentation, and troubleshooting platform-specific issues. This is a critical final checkpoint before launch, depending on all previous tasks."
+		}
+	]
+}
