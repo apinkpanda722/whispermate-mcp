@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
-import { Check, Copy } from 'lucide-react'
+import { Card } from '@/components/ui/card'
+import { Check, Copy, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 
 interface TranscriptionResultProps {
@@ -20,9 +21,12 @@ export function TranscriptionResult({ text, onCopy }: TranscriptionResultProps) 
   }
 
   return (
-    <div className="w-full max-w-2xl p-6 bg-card rounded-lg border">
+    <Card className="w-full max-w-2xl p-6">
       <div className="flex justify-between items-start mb-4">
-        <h3 className="text-lg font-semibold">변환 결과</h3>
+        <h3 className="flex items-center gap-2 text-lg font-semibold">
+          <Sparkles className="size-4 text-primary" />
+          변환 결과
+        </h3>
         <Button type="button" variant="ghost" size="sm" onClick={handleCopy}>
           {copied ? (
             <>
@@ -36,6 +40,6 @@ export function TranscriptionResult({ text, onCopy }: TranscriptionResultProps) 
         </Button>
       </div>
       <p className="text-base leading-relaxed whitespace-pre-wrap">{text}</p>
-    </div>
+    </Card>
   )
 }

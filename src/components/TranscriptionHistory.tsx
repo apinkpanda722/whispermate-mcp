@@ -20,13 +20,17 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Check, Copy, Pencil, Search, Trash2, X } from 'lucide-react'
+import { Check, Copy, History, Pencil, Search, Trash2, X } from 'lucide-react'
 
 type Transcription = Database['public']['Tables']['transcriptions']['Row']
 
 const DELETE_ANIMATION_MS = 200
 
-export function TranscriptionHistory() {
+interface TranscriptionHistoryProps {
+  onDataChange?: () => void
+}
+
+export function TranscriptionHistory({ onDataChange }: TranscriptionHistoryProps = {}) {
   const [items, setItems] = useState<Transcription[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -90,6 +94,7 @@ export function TranscriptionHistory() {
       })
     }, DELETE_ANIMATION_MS)
     toast.success('삭제되었습니다')
+    onDataChange?.()
   }
 
   const confirmDelete = (id: string) => {
@@ -146,7 +151,10 @@ export function TranscriptionHistory() {
 
   return (
     <div className="w-full max-w-4xl space-y-4">
-      <h2 className="text-2xl font-bold">변환 히스토리</h2>
+      <h2 className="flex items-center gap-2 text-2xl font-bold">
+        <History className="size-5 text-primary" />
+        변환 히스토리
+      </h2>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
