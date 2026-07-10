@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('electron', {
     write: (text: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('clipboard:write', text),
   },
+  updateShortcut: (accelerator: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('shortcut:update', accelerator),
   onToggleRecording: (callback: () => void): (() => void) => {
     const listener = () => callback()
     ipcRenderer.on('toggle-recording', listener)

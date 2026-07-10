@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      settings: {
+        Row: {
+          default_language: string
+          shortcut_key: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          default_language?: string
+          shortcut_key?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          default_language?: string
+          shortcut_key?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transcriptions: {
         Row: {
           audio_duration_seconds: number | null
