@@ -8,9 +8,23 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Check, Copy, Pencil, Search, Trash2, X } from 'lucide-react'
 
 type Transcription = Database['public']['Tables']['transcriptions']['Row']
+
+const DELETE_ANIMATION_MS = 200
 
 export function TranscriptionHistory() {
   const [items, setItems] = useState<Transcription[]>([])
@@ -19,6 +33,7 @@ export function TranscriptionHistory() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -58,10 +73,28 @@ export function TranscriptionHistory() {
 
     if (error) {
       toast.error('삭제에 실패했습니다')
-    } else {
-      setItems((prev) => prev.filter((item) => item.id !== id))
-      toast.success('삭제되었습니다')
+      setDeletingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+      return
     }
+
+    setTimeout(() => {
+      setItems((prev) => prev.filter((item) => item.id !== id))
+      setDeletingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }, DELETE_ANIMATION_MS)
+    toast.success('삭제되었습니다')
+  }
+
+  const confirmDelete = (id: string) => {
+    setDeletingIds((prev) => new Set(prev).add(id))
+    void handleDelete(id)
   }
 
   const startEdit = (item: Transcription) => {
@@ -131,7 +164,12 @@ export function TranscriptionHistory() {
         </p>
       ) : (
         items.map((item) => (
-          <Card key={item.id} className="p-4">
+          <Card
+            key={item.id}
+            className={`p-4 transition-all duration-200 ${
+              deletingIds.has(item.id) ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+            }`}
+          >
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground mb-2">
@@ -187,22 +225,47 @@ export function TranscriptionHistory() {
                     >
                       <Pencil className="w-4 h-4" />
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopy(item.edited_text || item.raw_text)}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(item.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopy(item.edited_text || item.raw_text)}
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                        }
+                      />
+                      <TooltipContent>클립보드에 복사</TooltipContent>
+                    </Tooltip>
+                    <AlertDialog>
+                      <AlertDialogTrigger
+                        render={
+                          <Button type="button" variant="ghost" size="sm">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        }
+                      />
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>정말 삭제하시겠습니까?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            이 작업은 되돌릴 수 없습니다.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>취소</AlertDialogCancel>
+                          <AlertDialogAction
+                            variant="destructive"
+                            onClick={() => confirmDelete(item.id)}
+                          >
+                            삭제
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </>
                 )}
               </div>
