@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { AlertCircle, AudioLines, History, Mic, RotateCw } from 'lucide-react'
+import { LanguageSelector } from '@/components/LanguageSelector'
 import { RecordingControls } from '@/components/RecordingControls'
 import { TranscriptionResult } from '@/components/TranscriptionResult'
 import { TranscriptionHistory } from '@/components/TranscriptionHistory'
@@ -25,6 +26,7 @@ function App() {
   const [failedAudioBlob, setFailedAudioBlob] = useState<Blob | null>(null)
   const [statsRefreshKey, setStatsRefreshKey] = useState(0)
   const [activeTab, setActiveTab] = useState('record')
+  const [selectedLanguage, setSelectedLanguage] = useState('ko')
 
   useEffect(() => {
     if (recorderError) {
@@ -37,7 +39,7 @@ function App() {
       setIsProcessing(true)
       setTranscriptionError(null)
       try {
-        const result = await transcribeAudioWithRetry(blob)
+        const result = await transcribeAudioWithRetry(blob, selectedLanguage)
         setTranscriptionText(result.text)
         setFailedAudioBlob(null)
 
@@ -57,7 +59,7 @@ function App() {
         setIsProcessing(false)
       }
     },
-    [copyToClipboard],
+    [copyToClipboard, selectedLanguage],
   )
 
   const handleRetry = useCallback(() => {
@@ -131,6 +133,15 @@ function App() {
         </TabsList>
 
         <TabsContent value="record" className="w-full flex flex-col items-center gap-8">
+          <div className="w-full max-w-2xl flex items-center justify-end gap-2">
+            <span className="text-sm text-muted-foreground">변환 언어</span>
+            <LanguageSelector
+              value={selectedLanguage}
+              onChange={setSelectedLanguage}
+              disabled={isRecording || isProcessing}
+            />
+          </div>
+
           <RecordingControls
             isRecording={isRecording}
             isProcessing={isProcessing}
