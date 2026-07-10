@@ -1,9 +1,24 @@
+import * as Sentry from '@sentry/electron/main'
 import { app, BrowserWindow, clipboard, globalShortcut, ipcMain, Menu, nativeImage, Tray } from 'electron'
+import { config as loadEnv } from 'dotenv'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isDev = process.env.NODE_ENV === 'development'
+
+loadEnv({ path: path.join(__dirname, 'runtime.env') })
+
+const sentryDsn = process.env.VITE_SENTRY_DSN
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: process.env.NODE_ENV ?? 'production',
+    tracesSampleRate: 1.0,
+  })
+} else if (!isDev) {
+  console.warn('VITE_SENTRY_DSN is not set; Sentry error tracking is disabled in the main process.')
+}
 
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
