@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { AlertCircle, AudioLines, History, Mic, RotateCw } from 'lucide-react'
+import {
+  AlertCircle,
+  AudioLines,
+  History,
+  Mic,
+  RotateCw,
+  Settings as SettingsIcon,
+} from 'lucide-react'
 import { LanguageSelector } from '@/components/LanguageSelector'
 import { RecordingControls } from '@/components/RecordingControls'
+import { SettingsPanel } from '@/components/SettingsPanel'
 import { TranscriptionResult } from '@/components/TranscriptionResult'
 import { TranscriptionHistory } from '@/components/TranscriptionHistory'
 import { StatsOverview } from '@/components/StatsOverview'
@@ -13,7 +21,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
 import { useAuth } from '@/hooks/useAuth'
 import { useClipboard } from '@/hooks/useClipboard'
+import { getSettings, updateSettings } from '@/services/settings'
 import { saveTranscription, transcribeAudioWithRetry } from '@/services/transcription'
+
+const DEFAULT_SHORTCUT = 'CommandOrControl+Shift+R'
 
 function App() {
   const { loading: authLoading } = useAuth()
@@ -27,12 +38,51 @@ function App() {
   const [statsRefreshKey, setStatsRefreshKey] = useState(0)
   const [activeTab, setActiveTab] = useState('record')
   const [selectedLanguage, setSelectedLanguage] = useState('ko')
+  const [shortcut, setShortcut] = useState(DEFAULT_SHORTCUT)
+  const [savingSettings, setSavingSettings] = useState(false)
 
   useEffect(() => {
     if (recorderError) {
       toast.error(recorderError.message)
     }
   }, [recorderError])
+
+  useEffect(() => {
+    if (authLoading) return
+
+    void (async () => {
+      try {
+        const settings = await getSettings()
+        if (!settings) return
+
+        setSelectedLanguage(settings.default_language)
+        const savedShortcut = settings.shortcut_key ?? DEFAULT_SHORTCUT
+        setShortcut(savedShortcut)
+        await window.electron?.updateShortcut(savedShortcut)
+      } catch (error) {
+        console.error('설정 불러오기 실패:', error)
+      }
+    })()
+  }, [authLoading])
+
+  const handleSaveSettings = useCallback(async () => {
+    setSavingSettings(true)
+    try {
+      const result = await window.electron?.updateShortcut(shortcut)
+      if (result && !result.success) {
+        toast.error(result.error ?? '단축키 등록에 실패했습니다')
+        return
+      }
+
+      await updateSettings({ default_language: selectedLanguage, shortcut_key: shortcut })
+      toast.success('설정이 저장되었습니다')
+    } catch (error) {
+      console.error('설정 저장 실패:', error)
+      toast.error('설정 저장에 실패했습니다')
+    } finally {
+      setSavingSettings(false)
+    }
+  }, [selectedLanguage, shortcut])
 
   const handleTranscription = useCallback(
     async (blob: Blob) => {
@@ -130,6 +180,10 @@ function App() {
             <History className="size-4" />
             히스토리
           </TabsTrigger>
+          <TabsTrigger value="settings">
+            <SettingsIcon className="size-4" />
+            설정
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="record" className="w-full flex flex-col items-center gap-8">
@@ -167,6 +221,17 @@ function App() {
 
         <TabsContent value="history" className="w-full flex justify-center">
           <TranscriptionHistory onDataChange={() => setStatsRefreshKey((key) => key + 1)} />
+        </TabsContent>
+
+        <TabsContent value="settings" className="w-full flex justify-center">
+          <SettingsPanel
+            language={selectedLanguage}
+            onLanguageChange={setSelectedLanguage}
+            shortcut={shortcut}
+            onShortcutChange={setShortcut}
+            onSave={() => void handleSaveSettings()}
+            saving={savingSettings}
+          />
         </TabsContent>
       </Tabs>
     </div>

@@ -108,17 +108,47 @@ ipcMain.handle('clipboard:write', (_event, text: string) => {
   }
 })
 
-app.whenReady().then(() => {
-  mainWindow = createWindow()
-  createTray()
+const DEFAULT_SHORTCUT = 'CommandOrControl+Shift+R'
+let currentShortcut: string | null = null
 
-  const registered = globalShortcut.register('CommandOrControl+Shift+R', () => {
+function registerToggleRecordingShortcut(accelerator: string) {
+  if (currentShortcut) {
+    globalShortcut.unregister(currentShortcut)
+  }
+
+  const registered = globalShortcut.register(accelerator, () => {
     mainWindow?.webContents.send('toggle-recording')
   })
 
-  if (!registered) {
-    console.error('전역 단축키 CommandOrControl+Shift+R 등록에 실패했습니다')
+  if (registered) {
+    currentShortcut = accelerator
+  } else {
+    console.error(`전역 단축키 ${accelerator} 등록에 실패했습니다`)
+    if (currentShortcut) {
+      globalShortcut.register(currentShortcut, () => {
+        mainWindow?.webContents.send('toggle-recording')
+      })
+    }
   }
+
+  return registered
+}
+
+ipcMain.handle('shortcut:update', (_event, accelerator: string) => {
+  try {
+    const registered = registerToggleRecordingShortcut(accelerator)
+    return registered
+      ? { success: true }
+      : { success: false, error: `단축키 등록에 실패했습니다: ${accelerator}` }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+})
+
+app.whenReady().then(() => {
+  mainWindow = createWindow()
+  createTray()
+  registerToggleRecordingShortcut(DEFAULT_SHORTCUT)
 })
 
 app.on('before-quit', () => {
