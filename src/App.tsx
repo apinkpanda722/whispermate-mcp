@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { RecordingControls } from '@/components/RecordingControls'
 import { TranscriptionResult } from '@/components/TranscriptionResult'
+import { TranscriptionHistory } from '@/components/TranscriptionHistory'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
 import { useAuth } from '@/hooks/useAuth'
 import { useClipboard } from '@/hooks/useClipboard'
@@ -55,7 +57,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8 gap-8">
+    <div className="min-h-screen flex flex-col items-center p-8 gap-8">
       <div className="text-center">
         <h1 className="text-4xl font-bold">Whisper Mate</h1>
         <p className="text-muted-foreground mt-2">
@@ -63,14 +65,27 @@ function App() {
         </p>
       </div>
 
-      <RecordingControls
-        isRecording={isRecording}
-        isProcessing={isProcessing}
-        onStartRecording={startRecording}
-        onStopRecording={stopRecording}
-      />
+      <Tabs defaultValue="record" className="w-full max-w-4xl items-center">
+        <TabsList>
+          <TabsTrigger value="record">녹음</TabsTrigger>
+          <TabsTrigger value="history">히스토리</TabsTrigger>
+        </TabsList>
 
-      <TranscriptionResult text={transcriptionText} />
+        <TabsContent value="record" className="w-full flex flex-col items-center gap-8">
+          <RecordingControls
+            isRecording={isRecording}
+            isProcessing={isProcessing}
+            onStartRecording={startRecording}
+            onStopRecording={stopRecording}
+          />
+
+          <TranscriptionResult text={transcriptionText} />
+        </TabsContent>
+
+        <TabsContent value="history" className="w-full flex justify-center">
+          <TranscriptionHistory />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
