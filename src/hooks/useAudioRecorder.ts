@@ -9,17 +9,60 @@ export interface AudioRecorderError {
 }
 
 const PREFERRED_MIME_TYPES = ['audio/webm', 'audio/mp4', 'audio/ogg']
+const SILENCE_PROBE_MS = 200
+const SILENCE_POLL_INTERVAL_MS = 20
 
 function pickSupportedMimeType(): string | undefined {
   if (typeof MediaRecorder === 'undefined') return undefined
   return PREFERRED_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type))
 }
 
-async function pickPreferredDeviceId(): Promise<string | undefined> {
-  if (!navigator.mediaDevices?.enumerateDevices) return undefined
+function stopStream(stream: MediaStream) {
+  stream.getTracks().forEach((track) => track.stop())
+}
+
+// A genuinely dead input (e.g. some MacBooks' built-in mic, see #43) resolves
+// getUserMedia successfully but every sample is exactly 0 — unlike a working
+// mic in a quiet room, which always has some non-zero electrical noise floor.
+// Checking for bit-exact zero (rather than a near-zero threshold) avoids
+// false positives on quiet/well-isolated setups where the user just hasn't
+// started talking yet.
+async function isStreamDead(stream: MediaStream): Promise<boolean> {
+  const AudioContextCtor = window.AudioContext
+  if (!AudioContextCtor) return false
+
+  const audioContext = new AudioContextCtor()
+  try {
+    const source = audioContext.createMediaStreamSource(stream)
+    const analyser = audioContext.createAnalyser()
+    analyser.fftSize = 2048
+    source.connect(analyser)
+
+    const data = new Float32Array(analyser.fftSize)
+    const deadline = Date.now() + SILENCE_PROBE_MS
+    let sawSignal = false
+
+    while (Date.now() < deadline && !sawSignal) {
+      analyser.getFloatTimeDomainData(data)
+      sawSignal = data.some((sample) => sample !== 0)
+      if (!sawSignal) await new Promise((resolve) => setTimeout(resolve, SILENCE_POLL_INTERVAL_MS))
+    }
+
+    return !sawSignal
+  } finally {
+    await audioContext.close()
+  }
+}
+
+async function pickWorkingStream(): Promise<MediaStream> {
+  const defaultStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  if (!(await isStreamDead(defaultStream))) return defaultStream
+
+  if (!navigator.mediaDevices?.enumerateDevices) return defaultStream
+  stopStream(defaultStream)
 
   const devices = await navigator.mediaDevices.enumerateDevices()
-  const externalInput = devices.find(
+  const candidates = devices.filter(
     (device) =>
       device.kind === 'audioinput' &&
       device.deviceId !== 'default' &&
@@ -28,7 +71,21 @@ async function pickPreferredDeviceId(): Promise<string | undefined> {
       !device.label.includes('내장'),
   )
 
-  return externalInput?.deviceId
+  for (const device of candidates) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: device.deviceId } },
+      })
+      if (!(await isStreamDead(stream))) return stream
+      stopStream(stream)
+    } catch {
+      // Device unavailable/busy — try the next candidate.
+    }
+  }
+
+  // Nothing produced a signal; fall back to the (silent) default rather than
+  // failing outright, since the user may still be able to work around it.
+  return navigator.mediaDevices.getUserMedia({ audio: true })
 }
 
 function toRecorderError(err: unknown): AudioRecorderError {
@@ -64,15 +121,7 @@ export function useAudioRecorder() {
 
     let stream: MediaStream
     try {
-      const preferredDeviceId = await pickPreferredDeviceId()
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : true,
-        })
-      } catch (err) {
-        if (!preferredDeviceId) throw err
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      }
+      stream = await pickWorkingStream()
     } catch (err) {
       const recorderError = toRecorderError(err)
       setError(recorderError)
