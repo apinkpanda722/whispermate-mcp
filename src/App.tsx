@@ -20,6 +20,7 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [transcriptionText, setTranscriptionText] = useState('')
   const [statsRefreshKey, setStatsRefreshKey] = useState(0)
+  const [activeTab, setActiveTab] = useState('record')
 
   useEffect(() => {
     if (recorderError) {
@@ -70,6 +71,14 @@ function App() {
     })
   }, [isRecording, isProcessing, startRecording, stopRecording])
 
+  useEffect(() => {
+    if (!window.electron?.onShowHistory) return
+
+    return window.electron.onShowHistory(() => {
+      setActiveTab('history')
+    })
+  }, [])
+
   if (authLoading) {
     return <div className="flex items-center justify-center h-screen">로딩 중...</div>
   }
@@ -95,7 +104,7 @@ function App() {
         <StatsOverview refreshKey={statsRefreshKey} />
       </div>
 
-      <Tabs defaultValue="record" className="w-full max-w-4xl items-center">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-4xl items-center">
         <TabsList>
           <TabsTrigger value="record">
             <Mic className="size-4" />

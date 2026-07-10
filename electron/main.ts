@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, globalShortcut, ipcMain } from 'electron'
+import { app, BrowserWindow, clipboard, globalShortcut, ipcMain, Menu, nativeImage, Tray } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -6,6 +6,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const isDev = process.env.NODE_ENV === 'development'
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
+let isQuitting = false
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -25,11 +27,61 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 
+  win.on('close', (event) => {
+    if (isQuitting) return
+    event.preventDefault()
+    win.hide()
+  })
+
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null
   })
 
   return win
+}
+
+function createTray() {
+  const iconPath = path.join(__dirname, 'assets', 'tray-icon.png')
+  const icon = nativeImage.createFromPath(iconPath)
+  if (process.platform === 'darwin') {
+    icon.setTemplateImage(true)
+  }
+
+  tray = new Tray(icon)
+  tray.setToolTip('Whisper Mate')
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '녹음 시작',
+      click: () => {
+        mainWindow?.show()
+        mainWindow?.webContents.send('toggle-recording')
+      },
+    },
+    {
+      label: '히스토리 열기',
+      click: () => {
+        mainWindow?.show()
+        mainWindow?.webContents.send('show-history')
+      },
+    },
+    { type: 'separator' },
+    {
+      label: '종료',
+      click: () => {
+        isQuitting = true
+        app.quit()
+      },
+    },
+  ])
+  tray.setContextMenu(contextMenu)
+
+  if (process.platform !== 'darwin') {
+    tray.on('click', () => {
+      mainWindow?.show()
+      mainWindow?.focus()
+    })
+  }
 }
 
 ipcMain.handle('clipboard:write', (_event, text: string) => {
@@ -43,6 +95,7 @@ ipcMain.handle('clipboard:write', (_event, text: string) => {
 
 app.whenReady().then(() => {
   mainWindow = createWindow()
+  createTray()
 
   const registered = globalShortcut.register('CommandOrControl+Shift+R', () => {
     mainWindow?.webContents.send('toggle-recording')
@@ -53,12 +106,20 @@ app.whenReady().then(() => {
   }
 })
 
+app.on('before-quit', () => {
+  isQuitting = true
+})
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  // App stays resident in the tray; quitting happens via the tray menu or Cmd+Q.
 })
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
+  if (mainWindow) {
+    mainWindow.show()
+  } else {
+    mainWindow = createWindow()
+  }
 })
 
 app.on('will-quit', () => {
