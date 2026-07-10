@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:electron": "tsc -p tsconfig.electron.json && node -e \"require('fs').cpSync('electron/assets','dist-electron/assets',{recursive:true})\"",
     "lint": "oxlint",
     "preview": "vite preview",
     "test:e2e": "playwright test",

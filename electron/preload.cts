@@ -10,4 +10,9 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('toggle-recording', listener)
     return () => ipcRenderer.removeListener('toggle-recording', listener)
   },
+  onShowHistory: (callback: () => void): (() => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('show-history', listener)
+    return () => ipcRenderer.removeListener('show-history', listener)
+  },
 })
