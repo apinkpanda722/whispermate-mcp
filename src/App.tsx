@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   AlertCircle,
@@ -18,7 +18,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useAudioRecorder } from '@/hooks/useAudioRecorder'
+import { type AudioChunk, useAudioRecorder } from '@/hooks/useAudioRecorder'
 import { useAuth } from '@/hooks/useAuth'
 import { useClipboard } from '@/hooks/useClipboard'
 import { getSettings, updateSettings } from '@/services/settings'
@@ -28,18 +28,53 @@ const DEFAULT_SHORTCUT = 'CommandOrControl+Shift+R'
 
 function App() {
   const { loading: authLoading } = useAuth()
-  const { isRecording, audioBlob, error: recorderError, startRecording, stopRecording } =
-    useAudioRecorder()
   const { copyToClipboard } = useClipboard()
   const [isProcessing, setIsProcessing] = useState(false)
   const [transcriptionText, setTranscriptionText] = useState('')
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null)
   const [failedAudioBlob, setFailedAudioBlob] = useState<Blob | null>(null)
+  const [chunkProgress, setChunkProgress] = useState<{ done: number; total: number } | null>(null)
   const [statsRefreshKey, setStatsRefreshKey] = useState(0)
   const [activeTab, setActiveTab] = useState('record')
   const [selectedLanguage, setSelectedLanguage] = useState('ko')
   const [shortcut, setShortcut] = useState(DEFAULT_SHORTCUT)
   const [savingSettings, setSavingSettings] = useState(false)
+
+  const chunkTextsRef = useRef<string[]>([])
+  const chunkDurationsRef = useRef<number[]>([])
+  const chunkFailedRef = useRef(false)
+  const chunkChainRef = useRef<Promise<void>>(Promise.resolve())
+  const singleChunkBlobRef = useRef<Blob | null>(null)
+
+  const updateJoinedText = useCallback(() => {
+    setTranscriptionText(chunkTextsRef.current.filter(Boolean).join(' ').trim())
+  }, [])
+
+  const handleChunk = useCallback(
+    ({ blob, index }: AudioChunk) => {
+      singleChunkBlobRef.current = index === 1 ? blob : null
+      setChunkProgress((prev) => ({ done: prev?.done ?? 0, total: index }))
+
+      chunkChainRef.current = chunkChainRef.current.then(async () => {
+        try {
+          const result = await transcribeAudioWithRetry(blob, selectedLanguage)
+          chunkTextsRef.current[index - 1] = result.text
+          chunkDurationsRef.current[index - 1] = result.duration ?? 0
+          updateJoinedText()
+        } catch (error) {
+          console.error(`청크 ${index} 변환 실패:`, error)
+          chunkFailedRef.current = true
+          chunkTextsRef.current[index - 1] = ''
+        } finally {
+          setChunkProgress((prev) => ({ done: (prev?.done ?? 0) + 1, total: prev?.total ?? index }))
+        }
+      })
+    },
+    [selectedLanguage, updateJoinedText],
+  )
+
+  const { isRecording, error: recorderError, startRecording, stopRecording } =
+    useAudioRecorder(handleChunk)
 
   useEffect(() => {
     if (recorderError) {
@@ -84,12 +119,62 @@ function App() {
     }
   }, [selectedLanguage, shortcut])
 
-  const handleTranscription = useCallback(
-    async (blob: Blob) => {
+  const finalizeTranscription = useCallback(async () => {
+    setIsProcessing(true)
+    try {
+      await chunkChainRef.current
+      const finalText = chunkTextsRef.current.filter(Boolean).join(' ').trim()
+      const totalDuration = chunkDurationsRef.current.reduce((sum, duration) => sum + duration, 0)
+
+      if (!finalText) {
+        setTranscriptionError('변환에 실패했습니다')
+        setFailedAudioBlob(singleChunkBlobRef.current)
+        toast.error('변환에 실패했습니다. 다시 시도해주세요.')
+        return
+      }
+
+      setTranscriptionText(finalText)
+      setTranscriptionError(null)
+      setFailedAudioBlob(null)
+
+      if (chunkFailedRef.current) {
+        toast.warning('일부 구간 변환에 실패했습니다')
+      }
+
+      const copied = await copyToClipboard(finalText)
+      if (copied) {
+        toast.success('클립보드에 복사되었습니다')
+      }
+
+      await saveTranscription(finalText, selectedLanguage, totalDuration || undefined)
+      setStatsRefreshKey((key) => key + 1)
+    } catch (error) {
+      console.error('변환 실패:', error)
+      toast.error('변환에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setIsProcessing(false)
+      setChunkProgress(null)
+      chunkTextsRef.current = []
+      chunkDurationsRef.current = []
+      chunkFailedRef.current = false
+    }
+  }, [copyToClipboard, selectedLanguage])
+
+  const handleStopRecording = useCallback(() => {
+    void (async () => {
+      await stopRecording()
+      await finalizeTranscription()
+    })()
+  }, [stopRecording, finalizeTranscription])
+
+  const handleRetry = useCallback(() => {
+    if (!failedAudioBlob) return
+
+    void (async () => {
       setIsProcessing(true)
       setTranscriptionError(null)
       try {
-        const result = await transcribeAudioWithRetry(blob, selectedLanguage)
+        const result = await transcribeAudioWithRetry(failedAudioBlob, selectedLanguage)
         setTranscriptionText(result.text)
         setFailedAudioBlob(null)
 
@@ -103,26 +188,12 @@ function App() {
       } catch (error) {
         console.error('변환 실패:', error)
         setTranscriptionError('변환에 실패했습니다')
-        setFailedAudioBlob(blob)
         toast.error('변환에 실패했습니다. 다시 시도해주세요.')
       } finally {
         setIsProcessing(false)
       }
-    },
-    [copyToClipboard, selectedLanguage],
-  )
-
-  const handleRetry = useCallback(() => {
-    if (failedAudioBlob) {
-      void handleTranscription(failedAudioBlob)
-    }
-  }, [failedAudioBlob, handleTranscription])
-
-  useEffect(() => {
-    if (audioBlob && !isRecording) {
-      void handleTranscription(audioBlob)
-    }
-  }, [audioBlob, isRecording, handleTranscription])
+    })()
+  }, [failedAudioBlob, copyToClipboard, selectedLanguage])
 
   useEffect(() => {
     if (!window.electron?.onToggleRecording) return
@@ -130,12 +201,12 @@ function App() {
     return window.electron.onToggleRecording(() => {
       if (isProcessing) return
       if (isRecording) {
-        stopRecording()
+        handleStopRecording()
       } else {
         void startRecording()
       }
     })
-  }, [isRecording, isProcessing, startRecording, stopRecording])
+  }, [isRecording, isProcessing, startRecording, handleStopRecording])
 
   useEffect(() => {
     if (!window.electron?.onShowHistory) return
@@ -200,8 +271,14 @@ function App() {
             isRecording={isRecording}
             isProcessing={isProcessing}
             onStartRecording={startRecording}
-            onStopRecording={stopRecording}
+            onStopRecording={handleStopRecording}
           />
+
+          {chunkProgress && chunkProgress.total > 1 && (
+            <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+              청크 {chunkProgress.done}/{chunkProgress.total} 변환 중...
+            </p>
+          )}
 
           {transcriptionError && (
             <Card className="w-full max-w-2xl p-4 flex items-center justify-between gap-4 border-destructive/50">
@@ -209,10 +286,12 @@ function App() {
                 <AlertCircle className="size-4 shrink-0" />
                 <span className="text-sm">{transcriptionError}</span>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
-                <RotateCw className="size-4 mr-2" />
-                다시 시도
-              </Button>
+              {failedAudioBlob && (
+                <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
+                  <RotateCw className="size-4 mr-2" />
+                  다시 시도
+                </Button>
+              )}
             </Card>
           )}
 

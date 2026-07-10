@@ -11,6 +11,12 @@ export interface AudioRecorderError {
 const PREFERRED_MIME_TYPES = ['audio/webm', 'audio/mp4', 'audio/ogg']
 const SILENCE_PROBE_MS = 200
 const SILENCE_POLL_INTERVAL_MS = 20
+const CHUNK_INTERVAL_MS = 5 * 60 * 1000
+
+export interface AudioChunk {
+  blob: Blob
+  index: number
+}
 
 function pickSupportedMimeType(): string | undefined {
   if (typeof MediaRecorder === 'undefined') return undefined
@@ -106,18 +112,30 @@ function toRecorderError(err: unknown): AudioRecorderError {
   return { type: 'unknown', message: '녹음을 시작할 수 없습니다. 다시 시도해주세요.' }
 }
 
-export function useAudioRecorder() {
+// Long recordings are split into ~5-minute segments so the app never holds
+// more than one interval's audio in memory and never uploads one giant file.
+// A raw MediaRecorder timeslice chunk after the first is NOT a standalone
+// decodable file (it's a WebM Cluster fragment missing the EBML/Segment
+// header), so each subsequent chunk is combined with the very first chunk
+// (which has the header) before it's handed off — verified against the
+// deployed Whisper endpoint: a lone non-first chunk 502s, header+chunk 200s.
+export function useAudioRecorder(onChunk: (chunk: AudioChunk) => void) {
   const [isRecording, setIsRecording] = useState(false)
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const [error, setError] = useState<AudioRecorderError | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
+  const headerChunkRef = useRef<Blob | null>(null)
+  const tailChunksRef = useRef<Blob[]>([])
+  const chunkIndexRef = useRef(0)
+  const onChunkRef = useRef(onChunk)
+  onChunkRef.current = onChunk
 
   const startRecording = useCallback(async () => {
     setError(null)
-    setAudioBlob(null)
+    headerChunkRef.current = null
+    tailChunksRef.current = []
+    chunkIndexRef.current = 0
 
     let stream: MediaStream
     try {
@@ -135,18 +153,23 @@ export function useAudioRecorder() {
     const mimeType = pickSupportedMimeType()
     const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
 
-    chunksRef.current = []
     mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        chunksRef.current.push(event.data)
+      if (event.data.size === 0) return
+
+      let chunkBlob: Blob
+      if (!headerChunkRef.current) {
+        headerChunkRef.current = event.data
+        chunkBlob = event.data
+      } else {
+        tailChunksRef.current.push(event.data)
+        chunkBlob = new Blob([headerChunkRef.current, ...tailChunksRef.current], {
+          type: mediaRecorder.mimeType,
+        })
+        tailChunksRef.current = []
       }
-    }
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType })
-      setAudioBlob(blob)
-      chunksRef.current = []
-      streamRef.current?.getTracks().forEach((track) => track.stop())
-      streamRef.current = null
+
+      chunkIndexRef.current += 1
+      onChunkRef.current({ blob: chunkBlob, index: chunkIndexRef.current })
     }
     mediaRecorder.onerror = (event) => {
       const domError = (event as Event & { error?: DOMException }).error
@@ -157,17 +180,28 @@ export function useAudioRecorder() {
       })
     }
 
-    mediaRecorder.start()
+    mediaRecorder.start(CHUNK_INTERVAL_MS)
     mediaRecorderRef.current = mediaRecorder
     setIsRecording(true)
   }, [])
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
-      setIsRecording(false)
-    }
+    return new Promise<void>((resolve) => {
+      const recorder = mediaRecorderRef.current
+      if (!recorder || recorder.state === 'inactive') {
+        resolve()
+        return
+      }
+
+      recorder.onstop = () => {
+        streamRef.current?.getTracks().forEach((track) => track.stop())
+        streamRef.current = null
+        setIsRecording(false)
+        resolve()
+      }
+      recorder.stop()
+    })
   }, [])
 
-  return { isRecording, audioBlob, error, startRecording, stopRecording }
+  return { isRecording, error, startRecording, stopRecording }
 }
