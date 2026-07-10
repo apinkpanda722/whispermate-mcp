@@ -85,6 +85,28 @@ export async function transcribeAudio(
   }
 }
 
+export async function transcribeAudioWithRetry(
+  audioBlob: Blob,
+  language = 'ko',
+  maxRetries = 3,
+): Promise<TranscriptionResult> {
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await transcribeAudio(audioBlob, language)
+    } catch (error) {
+      lastError = error
+      console.warn(`변환 시도 ${attempt}/${maxRetries} 실패:`, error)
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt))
+      }
+    }
+  }
+
+  throw lastError
+}
+
 export async function saveTranscription(
   text: string,
   language?: string,
