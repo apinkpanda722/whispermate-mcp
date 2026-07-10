@@ -1,34 +1,85 @@
-# React + TypeScript + Vite
+# Whisper Mate
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+음성을 녹음하면 자동으로 텍스트로 변환되어 클립보드에 복사되는 macOS/Windows 데스크톱 앱입니다.
+회의록, 메모, 메시지 작성 등 타이핑 대신 말하기로 대체하고 싶은 상황을 위한 도구입니다.
 
-Currently, two official plugins are available:
+## 설치
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+[GitHub Releases](../../releases)에서 운영체제에 맞는 파일을 다운로드하세요.
 
-## React Compiler
+- **macOS**: `Whisper Mate-x.x.x-arm64.dmg` (Apple Silicon)
+- **Windows**: `Whisper Mate Setup x.x.x.exe` (설치형) 또는 `Whisper Mate x.x.x.exe` (포터블)
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+현재 빌드는 코드 서명/공증이 되어 있지 않아(자체 인증서 미보유) OS의 기본 보안 경고가 뜹니다 — 악성코드가 아니라 서명 비용 문제이니 아래 안내대로 진행하면 됩니다.
 
-Note: This will impact Vite dev & build performances.
+### macOS: "확인되지 않은 개발자" 경고
 
-## Expanding the Oxlint configuration
+1. dmg를 열어 `Whisper Mate.app`을 Applications 폴더로 드래그
+2. 처음 실행 시 "확인되지 않은 개발자입니다" 경고가 뜨면, Finder에서 앱을 **우클릭 → 열기** → 다시 뜨는 대화상자에서 **열기** 클릭
+3. 첫 녹음 시 마이크 접근 권한 요청이 뜨면 허용
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+### Windows: SmartScreen 경고
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+1. 설치 파일 실행 시 "Windows의 PC 보호" 경고가 뜨면 **추가 정보** 클릭 → **실행** 클릭
+2. 설치 후 첫 녹음 시 마이크 접근 권한을 허용
+
+## 사용법
+
+1. 마이크 아이콘을 눌러 녹음을 시작하고, 다시 눌러 종료
+2. 종료하면 자동으로 Whisper API로 변환되어 결과가 화면에 표시되고 클립보드에 복사됨
+3. 변환 결과는 히스토리 탭에서 검색/편집/재복사/삭제 가능
+
+### 전역 단축키
+
+앱이 백그라운드(트레이)에 있어도 다른 창에서 바로 녹음을 시작/종료할 수 있습니다.
+
+- 기본 단축키: **Cmd/Ctrl + Shift + R**
+- 설정 탭에서 원하는 키 조합으로 변경 가능
+
+### 트레이 메뉴
+
+앱을 닫아도 시스템 트레이에 상주합니다. 트레이 아이콘 클릭(또는 우클릭)으로 녹음 시작, 히스토리 열기, 완전 종료를 선택할 수 있습니다.
+
+### 변환 언어
+
+설정 탭 또는 녹음 화면 상단에서 변환 언어를 선택할 수 있습니다: 한국어 / English / 日本語 / 中文 / Español / Français.
+
+### 긴 녹음
+
+5분을 넘는 녹음은 자동으로 구간별로 나뉘어 순차적으로 변환되며, 화면에 진행률("청크 N/M 변환 중")이 표시됩니다. 각 구간 변환이 끝나는 대로 결과가 실시간으로 이어붙습니다.
+
+## 문제 해결 FAQ
+
+**녹음은 되는데 항상 같은 문구("감사합니다" 등)만 나와요**
+마이크가 실제로는 무음을 캡처하고 있는 경우입니다 (일부 macOS 기기의 내장 마이크에서 발생). 앱이 자동으로 실제 신호가 있는 다른 입력 장치로 전환을 시도하지만, 그래도 같은 문제가 반복되면 시스템 설정 > 사운드 > 입력에서 마이크 레벨이 실제로 움직이는지 확인하고, 외장 마이크 연결을 시도해보세요.
+
+**"변환에 실패했습니다" 에러가 떠요**
+네트워크 문제 또는 STT API 일시 장애일 수 있습니다. 앱은 실패 시 지수 백오프로 자동 재시도(최대 3회)하며, 그래도 실패하면 "다시 시도" 버튼으로 같은 녹음을 재변환할 수 있습니다.
+
+**전역 단축키가 동작하지 않아요**
+다른 앱이 같은 키 조합을 이미 선점하고 있을 수 있습니다. 설정 탭에서 다른 키 조합으로 변경해보세요.
+
+**macOS에서 앱이 안 열려요 ("손상되었습니다" 등)**
+다운로드한 dmg가 아니라 이미 마운트/복사된 앱을 다시 열려는 경우 발생할 수 있습니다. dmg를 다시 마운트해서 Applications로 새로 복사한 뒤 우클릭 → 열기로 시도하세요.
+
+## 알려진 이슈 및 로드맵
+
+- macOS/Windows 빌드 모두 코드 서명 인증서가 없어 OS 기본 경고가 뜸 (설치 자체는 정상 동작)
+- Windows 빌드는 CI(windows-latest)에서만 검증되고, 이 프로젝트의 로컬 macOS 개발 환경에서는 Wine이 없어 실행 테스트가 불가능
+- Sentry 알림 규칙(Slack 라우팅 등)은 아직 기본값(이메일)만 설정되어 있음 — Sentry 웹 콘솔에서 수동 설정 필요
+- 소스맵은 생성되지만 아직 Sentry에 업로드되지 않음 (`sentry-cli`/`@sentry/vite-plugin` 릴리즈 스텝 필요)
+- 향후: 베타 테스트 피드백 수집, 정식 코드 서명/공증 적용, 공개 GitHub Release 발행
+
+배포 프로세스와 환경변수, CI 설정에 대한 자세한 내용은 [RELEASE.md](RELEASE.md)를 참고하세요.
+
+## 개발
+
+```bash
+npm run dev              # Vite 개발 서버 (http://localhost:5173)
+npm run electron:dev     # Electron 개발 모드
+npm run build             # 타입체크 + 프로덕션 빌드
+npm run lint               # Oxlint
+npm run test:e2e          # Playwright E2E 테스트
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+프로젝트 구조와 아키텍처는 [CLAUDE.md](CLAUDE.md)를 참고하세요.
