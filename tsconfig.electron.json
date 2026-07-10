@@ -10,6 +10,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": false,
+    "sourceMap": true,
     "types": ["node"]
   },
   "include": ["electron"]
