@@ -7,7 +7,8 @@ import type { Database } from '@/types/supabase'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Copy, Search, Trash2 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Check, Copy, Pencil, Search, Trash2, X } from 'lucide-react'
 
 type Transcription = Database['public']['Tables']['transcriptions']['Row']
 
@@ -15,6 +16,9 @@ export function TranscriptionHistory() {
   const [items, setItems] = useState<Transcription[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -60,6 +64,51 @@ export function TranscriptionHistory() {
     }
   }
 
+  const startEdit = (item: Transcription) => {
+    setEditingId(item.id)
+    setEditText(item.edited_text || item.raw_text)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditText('')
+  }
+
+  const saveEdit = async (id: string) => {
+    if (isSaving) return
+
+    setIsSaving(true)
+    try {
+      const { error } = await supabase
+        .from('transcriptions')
+        .update({ edited_text: editText })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, edited_text: editText } : item))
+      )
+      setEditingId(null)
+      toast.success('수정되었습니다')
+    } catch (error) {
+      toast.error('저장에 실패했습니다')
+      console.error('Edit save error:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleEditKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, id: string) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      saveEdit(id)
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelEdit()
+    }
+  }
+
   if (loading) return <div>로딩 중...</div>
 
   return (
@@ -91,27 +140,71 @@ export function TranscriptionHistory() {
                     locale: ko,
                   })}
                 </p>
-                <p className="text-base whitespace-pre-wrap">
-                  {item.edited_text || item.raw_text}
-                </p>
+                {editingId === item.id ? (
+                  <Textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyDown={(e) => handleEditKeyDown(e, item.id)}
+                    className="min-h-[100px]"
+                    disabled={isSaving}
+                    autoFocus
+                  />
+                ) : (
+                  <p className="text-base whitespace-pre-wrap">
+                    {item.edited_text || item.raw_text}
+                  </p>
+                )}
               </div>
               <div className="flex gap-2 ml-4">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleCopy(item.edited_text || item.raw_text)}
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(item.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                {editingId === item.id ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={isSaving}
+                      onClick={() => saveEdit(item.id)}
+                    >
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={isSaving}
+                      onClick={cancelEdit}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => startEdit(item)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCopy(item.edited_text || item.raw_text)}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(item.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </Card>
