@@ -2,17 +2,35 @@
   "appId": "com.whispermate.app",
   "productName": "Whisper Mate",
   "directories": {
-    "output": "release"
+    "output": "release",
+    "buildResources": "electron/assets"
   },
   "files": [
     "dist/**/*",
-    "dist-electron/**/*"
+    "dist-electron/**/*",
+    "!dist/**/*.map",
+    "!dist-electron/**/*.map"
   ],
   "mac": {
-    "target": "dmg",
-    "category": "public.app-category.productivity"
+    "target": ["dmg", "zip"],
+    "category": "public.app-category.productivity",
+    "icon": "electron/assets/icon.icns",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "entitlements": "electron/entitlements.mac.plist",
+    "entitlementsInherit": "electron/entitlements.mac.plist",
+    "extendInfo": {
+      "NSMicrophoneUsageDescription": "Whisper Mate는 녹음을 텍스트로 변환하기 위해 마이크 접근 권한이 필요합니다."
+    }
   },
   "win": {
-    "target": "nsis"
+    "target": ["nsis", "portable"],
+    "icon": "electron/assets/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
   }
 }
