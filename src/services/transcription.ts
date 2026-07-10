@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import * as Sentry from '@sentry/react'
 import { FunctionsHttpError } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
+
+type TranscriptionInsert = Database['public']['Tables']['transcriptions']['Insert']
 
 export interface TranscriptionResult {
   text: string
@@ -80,4 +83,41 @@ export async function transcribeAudio(
     })
     throw error
   }
+}
+
+export async function saveTranscription(
+  text: string,
+  language?: string,
+  audioDuration?: number,
+): Promise<string> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new TranscriptionError('User not authenticated')
+  }
+
+  const transcription: TranscriptionInsert = {
+    user_id: user.id,
+    raw_text: text,
+    edited_text: null,
+    audio_duration_seconds: audioDuration,
+    language: language || 'ko',
+  }
+
+  const { data, error } = await supabase
+    .from('transcriptions')
+    .insert(transcription)
+    .select('id')
+    .single()
+
+  if (error) {
+    Sentry.captureException(error, {
+      tags: { service: 'transcription', action: 'save' },
+    })
+    throw error
+  }
+
+  return data.id
 }
