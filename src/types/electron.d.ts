@@ -6,6 +6,7 @@ declare global {
       clipboard: {
         write: (text: string) => Promise<{ success: boolean; error?: string }>
       }
+      onToggleRecording: (callback: () => void) => () => void
     }
   }
 }

@@ -57,6 +57,19 @@ function App() {
     }
   }, [audioBlob, isRecording, handleTranscription])
 
+  useEffect(() => {
+    if (!window.electron?.onToggleRecording) return
+
+    return window.electron.onToggleRecording(() => {
+      if (isProcessing) return
+      if (isRecording) {
+        stopRecording()
+      } else {
+        void startRecording()
+      }
+    })
+  }, [isRecording, isProcessing, startRecording, stopRecording])
+
   if (authLoading) {
     return <div className="flex items-center justify-center h-screen">로딩 중...</div>
   }
