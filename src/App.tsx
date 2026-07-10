@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { AudioLines, History, Mic } from 'lucide-react'
+import { AlertCircle, AudioLines, History, Mic, RotateCw } from 'lucide-react'
 import { RecordingControls } from '@/components/RecordingControls'
 import { TranscriptionResult } from '@/components/TranscriptionResult'
 import { TranscriptionHistory } from '@/components/TranscriptionHistory'
 import { StatsOverview } from '@/components/StatsOverview'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
 import { useAuth } from '@/hooks/useAuth'
 import { useClipboard } from '@/hooks/useClipboard'
-import { saveTranscription, transcribeAudio } from '@/services/transcription'
+import { saveTranscription, transcribeAudioWithRetry } from '@/services/transcription'
 
 function App() {
   const { loading: authLoading } = useAuth()
@@ -19,6 +21,8 @@ function App() {
   const { copyToClipboard } = useClipboard()
   const [isProcessing, setIsProcessing] = useState(false)
   const [transcriptionText, setTranscriptionText] = useState('')
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null)
+  const [failedAudioBlob, setFailedAudioBlob] = useState<Blob | null>(null)
   const [statsRefreshKey, setStatsRefreshKey] = useState(0)
   const [activeTab, setActiveTab] = useState('record')
 
@@ -31,9 +35,11 @@ function App() {
   const handleTranscription = useCallback(
     async (blob: Blob) => {
       setIsProcessing(true)
+      setTranscriptionError(null)
       try {
-        const result = await transcribeAudio(blob)
+        const result = await transcribeAudioWithRetry(blob)
         setTranscriptionText(result.text)
+        setFailedAudioBlob(null)
 
         const copied = await copyToClipboard(result.text)
         if (copied) {
@@ -44,6 +50,8 @@ function App() {
         setStatsRefreshKey((key) => key + 1)
       } catch (error) {
         console.error('변환 실패:', error)
+        setTranscriptionError('변환에 실패했습니다')
+        setFailedAudioBlob(blob)
         toast.error('변환에 실패했습니다. 다시 시도해주세요.')
       } finally {
         setIsProcessing(false)
@@ -51,6 +59,12 @@ function App() {
     },
     [copyToClipboard],
   )
+
+  const handleRetry = useCallback(() => {
+    if (failedAudioBlob) {
+      void handleTranscription(failedAudioBlob)
+    }
+  }, [failedAudioBlob, handleTranscription])
 
   useEffect(() => {
     if (audioBlob && !isRecording) {
@@ -123,6 +137,19 @@ function App() {
             onStartRecording={startRecording}
             onStopRecording={stopRecording}
           />
+
+          {transcriptionError && (
+            <Card className="w-full max-w-2xl p-4 flex items-center justify-between gap-4 border-destructive/50">
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="size-4 shrink-0" />
+                <span className="text-sm">{transcriptionError}</span>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
+                <RotateCw className="size-4 mr-2" />
+                다시 시도
+              </Button>
+            </Card>
+          )}
 
           <TranscriptionResult text={transcriptionText} />
         </TabsContent>
