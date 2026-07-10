@@ -166,6 +166,7 @@ export function TranscriptionHistory() {
         items.map((item) => (
           <Card
             key={item.id}
+            data-testid="transcription-item"
             className={`p-4 transition-all duration-200 ${
               deletingIds.has(item.id) ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
             }`}
@@ -200,6 +201,7 @@ export function TranscriptionHistory() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      aria-label="저장"
                       disabled={isSaving}
                       onClick={() => saveEdit(item.id)}
                     >
@@ -209,6 +211,7 @@ export function TranscriptionHistory() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      aria-label="편집 취소"
                       disabled={isSaving}
                       onClick={cancelEdit}
                     >
@@ -221,6 +224,7 @@ export function TranscriptionHistory() {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      aria-label="편집"
                       onClick={() => startEdit(item)}
                     >
                       <Pencil className="w-4 h-4" />
@@ -232,6 +236,7 @@ export function TranscriptionHistory() {
                             type="button"
                             variant="ghost"
                             size="sm"
+                            aria-label="복사"
                             onClick={() => handleCopy(item.edited_text || item.raw_text)}
                           >
                             <Copy className="w-4 h-4" />
@@ -243,7 +248,7 @@ export function TranscriptionHistory() {
                     <AlertDialog>
                       <AlertDialogTrigger
                         render={
-                          <Button type="button" variant="ghost" size="sm">
+                          <Button type="button" variant="ghost" size="sm" aria-label="삭제">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         }
