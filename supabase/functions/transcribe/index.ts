@@ -53,11 +53,17 @@ Deno.serve(async (req: Request) => {
     }
 
     const language = formData.get("language");
+    const prompt = formData.get("prompt");
 
     const whisperFormData = new FormData();
     whisperFormData.append("file", audioFile);
     whisperFormData.append("model", "whisper-1");
     whisperFormData.append("language", typeof language === "string" && language ? language : "ko");
+    whisperFormData.append("temperature", "0");
+    whisperFormData.append("response_format", "verbose_json");
+    if (typeof prompt === "string" && prompt) {
+      whisperFormData.append("prompt", prompt);
+    }
 
     const whisperResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",

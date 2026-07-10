@@ -37,6 +37,7 @@ async function readErrorMessage(error: FunctionsHttpError): Promise<string> {
 export async function transcribeAudio(
   audioBlob: Blob,
   language = 'ko',
+  prompt?: string,
 ): Promise<TranscriptionResult> {
   try {
     const {
@@ -50,6 +51,9 @@ export async function transcribeAudio(
     const formData = new FormData()
     formData.append('file', audioBlob, 'recording.webm')
     formData.append('language', language)
+    if (prompt) {
+      formData.append('prompt', prompt)
+    }
 
     const { data, error } = await supabase.functions.invoke<TranscribeFunctionResponse>(
       'transcribe',
@@ -89,12 +93,13 @@ export async function transcribeAudioWithRetry(
   audioBlob: Blob,
   language = 'ko',
   maxRetries = 3,
+  prompt?: string,
 ): Promise<TranscriptionResult> {
   let lastError: unknown
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      return await transcribeAudio(audioBlob, language)
+      return await transcribeAudio(audioBlob, language, prompt)
     } catch (error) {
       lastError = error
       console.warn(`변환 시도 ${attempt}/${maxRetries} 실패:`, error)
