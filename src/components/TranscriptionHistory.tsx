@@ -6,24 +6,35 @@ import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/supabase'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Copy, Trash2 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Copy, Search, Trash2 } from 'lucide-react'
 
 type Transcription = Database['public']['Tables']['transcriptions']['Row']
 
 export function TranscriptionHistory() {
   const [items, setItems] = useState<Transcription[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
-    fetchHistory()
-  }, [])
+    const timer = setTimeout(() => {
+      fetchHistory(searchQuery)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
-  const fetchHistory = async () => {
-    const { data, error } = await supabase
+  const fetchHistory = async (search: string) => {
+    let query = supabase
       .from('transcriptions')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(50)
+
+    if (search.trim()) {
+      query = query.or(`raw_text.ilike.%${search}%,edited_text.ilike.%${search}%`)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error('히스토리 조회 실패:', error)
@@ -54,8 +65,21 @@ export function TranscriptionHistory() {
   return (
     <div className="w-full max-w-4xl space-y-4">
       <h2 className="text-2xl font-bold">변환 히스토리</h2>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="변환 결과 검색..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
       {items.length === 0 ? (
-        <p className="text-muted-foreground">아직 변환 기록이 없습니다</p>
+        <p className="text-muted-foreground">
+          {searchQuery.trim() ? '검색 결과가 없습니다' : '아직 변환 기록이 없습니다'}
+        </p>
       ) : (
         items.map((item) => (
           <Card key={item.id} className="p-4">
