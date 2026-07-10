@@ -15,6 +15,22 @@ function pickSupportedMimeType(): string | undefined {
   return PREFERRED_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type))
 }
 
+async function pickPreferredDeviceId(): Promise<string | undefined> {
+  if (!navigator.mediaDevices?.enumerateDevices) return undefined
+
+  const devices = await navigator.mediaDevices.enumerateDevices()
+  const externalInput = devices.find(
+    (device) =>
+      device.kind === 'audioinput' &&
+      device.deviceId !== 'default' &&
+      device.deviceId !== 'communications' &&
+      !device.label.includes('Built-in') &&
+      !device.label.includes('내장'),
+  )
+
+  return externalInput?.deviceId
+}
+
 function toRecorderError(err: unknown): AudioRecorderError {
   if (err instanceof DOMException) {
     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
@@ -48,7 +64,15 @@ export function useAudioRecorder() {
 
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const preferredDeviceId = await pickPreferredDeviceId()
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : true,
+        })
+      } catch (err) {
+        if (!preferredDeviceId) throw err
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      }
     } catch (err) {
       const recorderError = toRecorderError(err)
       setError(recorderError)
