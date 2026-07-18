@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
@@ -14,5 +15,10 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
   },
 })
