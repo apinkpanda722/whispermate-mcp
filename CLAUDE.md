@@ -8,8 +8,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` — type-check via `tsc -b` (project references: `tsconfig.app.json` + `tsconfig.node.json`), then `vite build`
 - `npm run lint` — run Oxlint (config in `.oxlintrc.json`)
 - `npm run preview` — preview the production build locally
+- `npm run test:unit` — run unit tests once with Vitest
+- `npm run test:unit:watch` — run unit tests in watch mode
+- `npm run test:e2e` — run Playwright end-to-end tests (`tests/e2e/*.spec.ts`)
 
-There is no test runner configured in this project yet.
+Unit tests (Vitest + `@testing-library/react`, jsdom environment) are configured in the `test`
+block of `vite.config.ts`, with `src/test/setup.ts` loading `@testing-library/jest-dom` matchers.
+Unit test files are colocated next to their source as `*.test.ts`/`*.test.tsx` (matched by the
+`src/**/*.test.{ts,tsx}` include glob) — this is separate from the Playwright e2e suite in
+`tests/e2e/`. The `unit-test-writer` subagent (`.claude/agents/unit-test-writer.md`) is set up to
+write these tests following this repo's conventions.
 
 ## Architecture
 
